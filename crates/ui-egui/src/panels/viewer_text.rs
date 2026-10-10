@@ -125,6 +125,25 @@ fn text_layer_at(app: &EffectcraftApp, ectx: &EvalCtx, map: &ViewerMap, s: Pos2)
         .find(|e| e.contains(map, s))
 }
 
+/// The text layer a double-click at `s` edits: the layer a click there acts on (a selected layer
+/// under the pointer, else the frontmost, as `viewer::pick` chooses) when that is a text layer.
+/// A precomp or solid in front of a title is opened by the viewer instead of the title edited.
+fn text_layer_to_open(app: &EffectcraftApp, ectx: &EvalCtx, map: &ViewerMap, s: Pos2) -> Option<Edited> {
+    let cpt = map.to_comp(s);
+    let hits: Vec<&Layer> = super::viewer::selectable_layers(ectx.comp, ectx.time)
+        .filter(|l| match l.source {
+            LayerSource::Text => edited(app, ectx, l.id).is_some_and(|e| e.contains(map, s)),
+            _ => super::viewer::covers(ectx, l, cpt),
+        })
+        .collect();
+    let selected = &app.session.state.selected_layers;
+    let target = hits.iter().find(|l| selected.contains(&l.id)).or(hits.first())?;
+    if !matches!(target.source, LayerSource::Text) {
+        return None;
+    }
+    edited(app, ectx, target.id)
+}
+
 fn exec(app: &mut EffectcraftApp, id: &str, p: Value) -> Option<Value> {
     match app.session.execute(id, p) {
         Ok(v) => Some(v),
@@ -311,7 +330,7 @@ pub fn hook(
                 owns = true;
             }
             _ if !matches!(tool, Tool::Hand | Tool::Zoom) && !tool.is_pen() && !type_tool => {
-                if let Some(e) = text_layer_at(app, ectx, map, p) {
+                if let Some(e) = text_layer_to_open(app, ectx, map, p) {
                     exec(app, "text.edit", json!({"layer": e.layer.id.0}));
                     ui.memory_mut(|m| m.request_focus(focus_id()));
                     owns = true;

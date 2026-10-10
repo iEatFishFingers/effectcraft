@@ -96,8 +96,8 @@ Element ids are stable, for example `tools.Selection`, `panel.Timeline`, `panel.
 one), `panel.tab.Viewer(<n>)` and `viewers.<n>` (View ▸ New Viewer's other Composition viewers;
 `viewers.0` is the Composition panel while another viewer is active), `header.workspace.Animation`, `project.item.<id>` (a double-click opens the item, Enter
 renames it), `viewer.comp`, `viewer.handle.<layer>.<i>`,
-`timeline.layer.<id>.bar`, `timeline.layer.<id>.nestedMarker.<i>` (a precomp's comp markers), `timeline.layer.<id>.twirl`, `timeline.layer.<id>.row` (click selects,
-Enter or a double-click renames, drag reorders), `timeline.prop.<uid>.stopwatch`,
+`timeline.layer.<id>.bar` (a double-click opens the layer as on its name), `timeline.layer.<id>.nestedMarker.<i>` (a precomp's comp markers), `timeline.layer.<id>.twirl`, `timeline.layer.<id>.row` (click selects,
+a double-click opens a precomp, footage, solid, camera, light or text layer and renames the others, Enter renames, drag reorders), `timeline.prop.<uid>.stopwatch`,
 `timeline.key.<uid>.<frame>`, `timeline.cti`, `effectControls.prop.<uid>.value` (an angle's
 revolutions are `timeline.prop.<uid>.revolutions`, `effectControls.prop.<uid>.revolutions` and
 `properties.prop.<uid>.revolutions`) and `effects.item.<name>`. The Composition viewer adds `viewer.magnification`, `viewer.resolution`,

@@ -488,8 +488,16 @@ Extension points and the bundled extensions: [plugins.md](plugins.md).
 * `keys.toggleTransform {"layers"?: [...], "prop": "position"}` (Alt+Shift+A/P/S/R/T) adds or
   removes a keyframe at the current time on that Transform property of each layer, in one undo
   step (separated X/Y/Z Position; Orientation and X/Y/Z Rotation on 3D layers).
-* Rename a layer with Enter (or double-click a name): the whole name is selected, Enter or a
-  click elsewhere commits, Escape cancels; `layer.rename {layer, name}` does it directly.
+* Rename a layer with Enter (or double-click the name of a shape, null or 3D layer): the whole
+  name is selected, Enter or a click elsewhere commits, Escape cancels; `layer.rename {layer,
+  name}` does it directly.
+* Double-clicking a layer's name or bar opens it, as in After Effects: a precomp opens its
+  composition (`comp.open`; Alt+double-click: the Layer panel), footage and solids open in the
+  Layer panel (`layer.openLayer`), a camera or light opens its settings (`layer.settings`) and a
+  text layer is edited with all its text selected (`text.edit`). In the Composition panel the
+  layer a click there would select is opened: a precomp opens its composition, footage or a
+  solid opens in the Layer panel, and a text layer is edited (a precomp in front of a title
+  opens rather than the title being edited).
 * Ctrl/Cmd-click on the current-time display (Timeline or Composition panel) toggles the Time
   Display Style between Timecode and Frames: `file.projectSettings {"timeDisplay": "frames"}`.
 * `prop.pickWhip {layer, prop, target: {layer, prop, dimension?}}` links a property as its
