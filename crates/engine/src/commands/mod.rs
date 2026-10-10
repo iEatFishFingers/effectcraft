@@ -1,6 +1,7 @@
 //! The command registry. Ids follow After Effects' menu structure; every menu item, panel button,
 //! shortcut and viewer/timeline gesture maps to one of these.
 
+mod ae2ec;
 mod align;
 mod align_data;
 mod anim;
@@ -193,6 +194,7 @@ pub fn command_specs() -> &'static [CommandSpec] {
         v.extend(expr_tools::specs());
         v.extend(proxy::specs());
         v.extend(scripts::specs());
+        v.extend(ae2ec::specs());
         v.extend(panels_cmds::specs());
         v.extend(footage_panel::specs());
         v.extend(autotrace::specs());

@@ -131,6 +131,17 @@ It uses only After Effects' documented scripting API (`comp.selectedProperties`,
 `KeyframeEase`, `setInterpolationTypeAtKey`, `app.settings`, ScriptUI), so it is also a worked
 example of a keyframe tool.
 
+## Importing After Effects projects (ae2ec)
+
+ae2ec, a separate tool, moves After Effects projects into EffectCraft with scripts on both sides:
+its After Effects script exports a project as an `.ae2ec.json`, and its EffectCraft script
+rebuilds it. Its `tools\install.ps1` installs the EffectCraft side as `Import from After
+Effects.jsx` in the Scripts folder. File ▸ Import ▸ After Effects Project (.ae2ec.json)…
+(`file.importAfterEffects`) runs that script, which asks for the export, shows its options, imports
+it and reports what didn't come across. The importer and its format live in the ae2ec repository,
+so they change without EffectCraft changing; without them installed, the menu item says how to
+install them.
+
 ## Effect plug-ins
 
 EffectCraft loads third-party effects through a small, versioned plug-in API (**API version 1**).
