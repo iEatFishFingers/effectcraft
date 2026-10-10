@@ -1247,6 +1247,8 @@ pub fn show(app: &mut EffectcraftApp, ui: &mut egui::Ui, rect: Rect) {
     }
     let tm = TMap { x0: graph_x0 + 6.0, start: app.ui.timeline.start, pps };
     ctx.data_mut(|d| d.insert_temp(tl_map_id(), (tm.x0, tm.start, tm.pps)));
+    // Scrolling sideways stops here: the comp's end at the time graph's right edge.
+    let last_start = (comp.duration.seconds() - (tm.t(graph_x1) - tm.start)).max(0.0);
     let top = rect.min.y;
     let rows_top = top + header_h + colhdr_h;
     let rows_rect = Rect::from_min_max(pos2(rect.min.x, rows_top), pos2(rect.max.x, rect.max.y - footer_h));
@@ -1677,7 +1679,9 @@ pub fn show(app: &mut EffectcraftApp, ui: &mut egui::Ui, rect: Rect) {
                 app.ui.timeline.scroll_y = (app.ui.timeline.scroll_y - dy).clamp(0.0, max_scroll);
             }
             if dx.abs() > 0.0 && app.ui.timeline.pps.is_some() && !over_outline {
-                app.ui.timeline.start = (app.ui.timeline.start - dx as f64 / pps).max(0.0);
+                // Sideways (Shift+wheel, trackpad) as far as the comp's end, like the scroll bar.
+                let start = app.ui.timeline.start;
+                app.ui.timeline.start = (start - dx as f64 / pps).clamp(0.0, last_start.max(start));
             }
         }
     }
@@ -2947,6 +2951,16 @@ pub fn show(app: &mut EffectcraftApp, ui: &mut egui::Ui, rect: Rect) {
         app.ui.timeline.start = (cti - rel / npps).max(0.0);
         app.ui.timeline.pps = Some(npps);
     }
+    if app.ui.timeline.pps.is_some() && last_start > 0.0 {
+        // The time graph's scroll bar along the top of the footer, under the graph, while it shows
+        // less than the whole comp (after the zoom slider, so the strip is the bar's).
+        let track = Rect::from_min_max(pos2(tm.x0, footer.min.y + 1.0), pos2(graph_x1, footer.min.y + 5.0));
+        let (at, max) = ((tm.start.min(last_start) * pps) as f32, (last_start * pps) as f32);
+        let s = widgets::scroll_bar(ui, &mut app.auto, "timeline.timeScroll", track, at, max, &t);
+        if s != at {
+            app.ui.timeline.start = s as f64 / pps;
+        }
+    }
 
     // Composition markers in the ruler; protected regions shade the layer rows.
     let mstrip = Rect::from_min_max(pos2(graph_x0, ruler.max.y - 12.0), pos2(bin.min.x, ruler.max.y));
@@ -2965,8 +2979,7 @@ pub fn show(app: &mut EffectcraftApp, ui: &mut egui::Ui, rect: Rect) {
         }
         if hand.dragged() && app.ui.timeline.pps.is_some() {
             let start = app.ui.timeline.start;
-            let last = (comp.duration.seconds() - (tm.t(graph_x1) - tm.start)).max(start).max(0.0);
-            app.ui.timeline.start = (start - hand.drag_delta().x as f64 / pps).clamp(0.0, last);
+            app.ui.timeline.start = (start - hand.drag_delta().x as f64 / pps).clamp(0.0, last_start.max(start));
         }
     }
 
