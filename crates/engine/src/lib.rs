@@ -396,6 +396,9 @@ pub struct Session {
     pub layer_cache: Arc<LayerCache>,
     /// The persistent disk cache (Settings ▸ Media & Disk Cache), when enabled.
     pub disk_cache: Option<Arc<effectcraft_render::disk_cache::DiskCache>>,
+    /// The disk cache's last footage salt: (the project it was read for, when, the salt). See
+    /// [`Session::bump`].
+    pub footage_salt: Option<(Arc<Project>, web_time::Instant, u64)>,
     /// Settings (Preferences).
     pub prefs: prefs::Prefs,
     /// Bumped whenever settings change (frontends re-apply theme, labels…).
@@ -517,6 +520,7 @@ impl Default for Session {
             journal: vec![],
             layer_cache: Arc::new(LayerCache::default()),
             disk_cache: None,
+            footage_salt: None,
             prefs: prefs::Prefs::default(),
             prefs_revision: 0,
             config: None,
@@ -645,9 +649,28 @@ impl Session {
             self.saved_revision = self.revision;
         }
         if self.disk_cache.is_some() {
-            self.layer_cache.set_disk_salt(effectcraft_render::disk_cache::footage_salt(&self.project));
+            let salt = self.disk_salt();
+            self.layer_cache.set_disk_salt(salt);
         }
         self.events.push(Event::ProjectChanged { revision: self.revision });
+    }
+
+    /// The disk cache's footage salt: every footage file's identity, down to the size and time
+    /// of each image sequence frame, so footage changed outside EffectCraft gets new cache keys.
+    /// Reading that from disk after every edit made every edit of a project with long image
+    /// sequences slow (45 ms for 18 items), so it is read again only when footage items change,
+    /// or a second after it was last read.
+    fn disk_salt(&mut self) -> u64 {
+        let now = web_time::Instant::now();
+        if let Some((p, at, salt)) = &self.footage_salt
+            && now.duration_since(*at) < std::time::Duration::from_secs(1)
+            && same_footage(p, &self.project)
+        {
+            return *salt;
+        }
+        let salt = effectcraft_render::disk_cache::footage_salt(&self.project);
+        self.footage_salt = Some((self.project.clone(), now, salt));
+        salt
     }
 
     pub fn undo(&mut self) -> bool {
@@ -945,6 +968,17 @@ impl Session {
             self.open_comp(c);
         }
     }
+}
+
+/// Whether two projects have the same footage items (ids and settings, sequence frames included).
+fn same_footage(a: &Project, b: &Project) -> bool {
+    fn footage(p: &Project) -> impl Iterator<Item = (ItemId, &effectcraft_project::Footage)> {
+        p.items.iter().filter_map(|(id, it)| match &it.kind {
+            effectcraft_project::ItemKind::Footage(f) => Some((*id, f)),
+            _ => None,
+        })
+    }
+    std::ptr::eq(a, b) || footage(a).eq(footage(b))
 }
 
 /// Bring effect instances saved by earlier versions up to date with the effect registry
