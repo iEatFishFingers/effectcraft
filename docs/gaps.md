@@ -157,6 +157,10 @@ The most important missing piece: it turns every other estimate here into a meas
   `.ecproj`, the way ffmpeg is used only from outside), or its format knowledge could be ported.
   The second means reading another implementation of the format, which AGENTS.md rules out
   unless the clean-room scope allows it.
+- A route that needs no format knowledge exists as a separate tool (ae2ec): the original application
+  exports its own project through its scripting API and a script here rebuilds it; File ▸ Import runs
+  that script. It does not read `.aep` files, so it does not touch the clean-room question. See
+  [[aep-to-ecproj-import]].
 - Also in this area: relative footage paths and relinking when a project moves (parity.md, Project).
 - Done when: the decision is recorded and, if approved, a corpus of real-world-shaped projects
   opens with its comps, layers, keyframes, effects and expressions intact.
