@@ -136,3 +136,27 @@ fn footage_changes_change_the_salt() {
     assert_ne!(k3, k2);
     assert_ne!(set_proxy(&mut s, false), k3);
 }
+
+#[test]
+fn edits_reuse_the_footage_salt_until_footage_changes_or_a_second_passes() {
+    let dir = folder("salt");
+    let mut s = session(&dir);
+    project(&mut s);
+    s.execute("file.importPlaceholder", json!({"name": "Shot"})).unwrap();
+    let (_, at, salt) = s.footage_salt.clone().unwrap();
+    // Edits that leave footage alone don't read the footage files again (with long image
+    // sequences that took tens of milliseconds per edit).
+    for v in [1, 2, 3] {
+        s.execute("prop.set", json!({"layer": "#1", "path": "effects/#1/blurriness", "value": v})).unwrap();
+    }
+    let (_, at2, salt2) = s.footage_salt.clone().unwrap();
+    assert_eq!((at2, salt2), (at, salt));
+    // A footage change reads them at once.
+    s.execute("file.importPlaceholder", json!({"name": "Shot 2"})).unwrap();
+    let (_, at3, salt3) = s.footage_salt.clone().unwrap();
+    assert!(at3 > at && salt3 != salt);
+    // So does any edit a second later (footage changed outside EffectCraft).
+    std::thread::sleep(std::time::Duration::from_millis(1100));
+    s.execute("prop.set", json!({"layer": "#1", "path": "effects/#1/blurriness", "value": 4})).unwrap();
+    assert!(s.footage_salt.as_ref().unwrap().1 > at3);
+}
