@@ -3,7 +3,7 @@ use std::time::Instant;
 use effectcraft_color::Label;
 use effectcraft_keyframe::{Keyframe, ShapePath, TextDoc, Value};
 use effectcraft_project::build::{self, Ids};
-use effectcraft_project::{Comp, Expression, ItemId, ItemKind, Layer, LayerId, LayerSource, Marker, MaskMode, Project, PropGroup, Solid};
+use effectcraft_project::{Comp, Expression, ItemId, ItemKind, Layer, LayerId, LayerSource, LightKind, Marker, MaskMode, Project, PropGroup, Solid};
 use effectcraft_render::{EvalCtx, NoFootage, RenderOpts, Renderer};
 use effectcraft_time::{FrameRate, Tick};
 
@@ -1146,6 +1146,54 @@ fn project_and_time_globals() {
     }
     assert_close!(f.num("thisLayer.marker.key(1).protectedRegion ? 1 : 0", 0.0), 1.0);
     assert_eq!(f.text("thisComp.layer(\"A\").marker.key(1).cuePointName + thisComp.layer(\"A\").marker.key(1).parameters.k", 0.0), "gov");
+}
+
+#[test]
+fn camera_light_time_remap_and_shutter_attributes() {
+    let mut f = fx();
+    let comp = f.p.comp(f.cid).unwrap().clone();
+    let mut cam = build::layer(&mut f.p, &comp, "Cam", LayerSource::Camera, (200, 100), None);
+    cam.props.prop_mut("cameraOptions/focusDistance").unwrap().value = Value::Scalar(321.0);
+    let zoom = cam.props.prop("cameraOptions/zoom").unwrap().value.as_f64();
+    let mut key = build::layer(&mut f.p, &comp, "Key", LayerSource::Light { kind: LightKind::Spot }, (200, 100), None);
+    key.props.prop_mut("lightOptions/intensity").unwrap().value = Value::Scalar(80.0);
+    key.props.prop_mut("lightOptions/coneAngle").unwrap().value = Value::Scalar(45.0);
+    let other = f.p.items.values().find(|i| i.name == "Other").unwrap().id;
+    let mut pre = build::layer(&mut f.p, &comp, "Pre", LayerSource::Comp { item: other }, (64, 32), None);
+    let mut next = f.p.next_id;
+    let remap = Ids(&mut next).prop("timeRemap", "Time Remap", Value::Scalar(0.0));
+    f.p.next_id = next;
+    let mut remap = remap;
+    remap.keys = vec![Keyframe::new(Tick::ZERO, Value::Scalar(0.0)), Keyframe::new(secs(2.0), Value::Scalar(1.0))];
+    pre.props.children.push(remap.into());
+    let c = f.p.comp_mut(f.cid).unwrap();
+    c.layers.insert(0, cam);
+    c.layers.push(key);
+    c.layers.push(pre);
+
+    // Camera attributes, on the active camera and on the layer by name.
+    assert_close!(f.num("thisComp.activeCamera.zoom", 0.0), zoom);
+    assert_close!(f.num("thisComp.layer(\"Cam\").zoom", 0.0), zoom);
+    assert_close!(f.num("thisComp.layer(\"Cam\").focusDistance", 0.0), 321.0);
+    assert_close!(f.num("thisComp.activeCamera.pointOfInterest[0]", 0.0), 100.0);
+    assert_close!(f.num("thisComp.layer(\"Cam\").pointOfInterest[1]", 0.0), 50.0);
+    assert_close!(f.num("thisComp.layer(\"Cam\").depthOfField ? 1 : 0", 0.0), 0.0);
+    // Light attributes; they take part in arithmetic like any property.
+    assert_close!(f.num("thisComp.layer(\"Key\").intensity", 0.0), 80.0);
+    assert_close!(f.num("thisComp.layer(\"Key\").intensity * 2", 0.0), 160.0);
+    assert_close!(f.num("thisComp.layer(\"Key\").coneAngle", 0.0), 45.0);
+    assert_close!(f.num("thisComp.layer(\"Key\").color[3]", 0.0), 1.0);
+    // Time Remap, as keyed.
+    assert_close!(f.num("thisComp.layer(\"Pre\").timeRemap", 1.0), 0.5);
+    // The comp's motion blur shutter (Composition Settings ▸ Advanced).
+    assert_close!(f.num("thisComp.shutterAngle", 0.0), 180.0);
+    assert_close!(f.num("thisComp.shutterPhase", 0.0), -90.0);
+    f.p.comp_mut(f.cid).unwrap().shutter_angle = 90.0;
+    assert_close!(f.num("thisComp.shutterAngle", 0.0), 90.0);
+    // A layer without the property says which one is missing instead of reading as undefined.
+    assert!(f.err("thisComp.layer(\"B\").zoom").contains("cameraOptions"), "{}", f.err("thisComp.layer(\"B\").zoom"));
+    assert!(f.err("thisComp.layer(\"Cam\").coneAngle").contains("lightOptions"), "{}", f.err("thisComp.layer(\"Cam\").coneAngle"));
+    assert!(f.err("thisComp.layer(\"B\").timeRemap").contains("timeRemap"), "{}", f.err("thisComp.layer(\"B\").timeRemap"));
 }
 
 #[test]

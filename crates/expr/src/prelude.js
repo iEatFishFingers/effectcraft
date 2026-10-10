@@ -439,6 +439,8 @@ Comp.prototype = {
   get pixelAspect() { return this.__info[6]; },
   get displayStartTime() { return this.__info[7]; },
   get bgColor() { return this.__info[8]; },
+  get shutterAngle() { return this.__info[9]; },
+  get shutterPhase() { return this.__info[10]; },
   get marker() { return new Markers(this.__c, -1); },
   // The topmost enabled camera active at the current time.
   get activeCamera() {
@@ -583,6 +585,31 @@ Layer.prototype = {
   get text() { return this.__group('text'); },
   get cameraOption() { return this.__group('cameraOptions'); },
   get lightOption() { return this.__group('lightOptions'); },
+  // Camera and light attributes read straight off the layer, as in After Effects
+  // (`thisComp.activeCamera.zoom`, `thisComp.layer("Key").intensity`). A layer without the
+  // property says so instead of reading as undefined.
+  get pointOfInterest() { return this.transform.__get('pointOfInterest'); },
+  get zoom() { return this.cameraOption.__get('zoom'); },
+  // A switch: its value, so `depthOfField ? a : b` tests it (a property object is always true).
+  get depthOfField() { return this.cameraOption.__get('dof').value; },
+  get focusDistance() { return this.cameraOption.__get('focusDistance'); },
+  get aperture() { return this.cameraOption.__get('aperture'); },
+  get blurLevel() { return this.cameraOption.__get('blurLevel'); },
+  get irisShape() { return this.cameraOption.__get('irisShape'); },
+  get irisRotation() { return this.cameraOption.__get('irisRotation'); },
+  get irisRoundness() { return this.cameraOption.__get('irisRoundness'); },
+  get irisAspectRatio() { return this.cameraOption.__get('irisAspectRatio'); },
+  get irisDiffractionFringe() { return this.cameraOption.__get('irisDiffractionFringe'); },
+  get highlightGain() { return this.cameraOption.__get('highlightGain'); },
+  get highlightThreshold() { return this.cameraOption.__get('highlightThreshold'); },
+  get highlightSaturation() { return this.cameraOption.__get('highlightSaturation'); },
+  get intensity() { return this.lightOption.__get('intensity'); },
+  get color() { return this.lightOption.__get('color'); },
+  get coneAngle() { return this.lightOption.__get('coneAngle'); },
+  get coneFeather() { return this.lightOption.__get('coneFeather'); },
+  get shadowDarkness() { return this.lightOption.__get('shadowDarkness'); },
+  get shadowDiffusion() { return this.lightOption.__get('shadowDiffusion'); },
+  get timeRemap() { return this.__group('timeRemap'); },
   get marker() { return new Markers(this.__c, this.__l); },
   effect: function (k) {
     var g = __child(this.__c, this.__l, '', 'effects');

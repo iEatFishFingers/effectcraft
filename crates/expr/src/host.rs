@@ -309,6 +309,8 @@ impl<'a> Resolver<'a> {
                     Resp::Num(c.pixel_aspect),
                     Resp::Num(c.display_start.seconds()),
                     Resp::nums([c.background[0] as f64, c.background[1] as f64, c.background[2] as f64, 1.0]),
+                    Resp::Num(c.shutter_angle),
+                    Resp::Num(c.shutter_phase),
                 ])
             }
             Req::CompByName { name } => {
