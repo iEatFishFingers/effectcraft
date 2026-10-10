@@ -418,6 +418,15 @@ pub fn specs() -> Vec<CommandSpec> {
             always,
             scriptui::close
         ),
+        cmd!(
+            "scriptui.fileDialog",
+            "Answer Script File Dialog",
+            [],
+            None,
+            "{paths: [path] | null (cancelled)} → answers the script waiting in File.openDialog / File.saveDialog / Folder.selectDialog (the reply that left it waiting has `fileDialog: {kind: open|save|folder, prompt, extensions, multi, name}`); the script may then read what was picked (writing still needs Allow Scripts to Write Files). Scripts can't run it",
+            always,
+            scriptui::file_dialog
+        ),
     ]
 }
 
