@@ -14,6 +14,7 @@ does, which functions it touches and which tests cover it.
 | [[expression-camera-light-attributes]] | `fix/expression-camera-light-attributes` | fix | CI pending |
 | [[slow-edits-with-image-sequences]] | `fix/slow-edits-with-image-sequences` | fix | CI pending |
 | [[aep-to-ecproj-import]] | `feat/aep-to-ecproj-import` | feature | CI pending |
+| [[timeline-horizontal-scrollbar]] | `feat/timeline-horizontal-scrollbar` | feature | CI pending |
 
 How the branches are managed: [[branching]].
 

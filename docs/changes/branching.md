@@ -23,4 +23,4 @@ part of [[index]]
 ## Current branches
 
 [[layer-double-click-opens-layer]], [[expression-camera-light-attributes]], [[slow-edits-with-image-sequences]],
-[[aep-to-ecproj-import]].
+[[aep-to-ecproj-import]], [[timeline-horizontal-scrollbar]].

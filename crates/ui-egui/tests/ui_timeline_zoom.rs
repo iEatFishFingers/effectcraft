@@ -172,6 +172,61 @@ fn spacebar_drag_scrolls_the_time_graph() {
     assert!(in_point(&h) < -1.0, "{}", in_point(&h));
 }
 
+fn shift_wheel(h: &mut Harness<'_, EffectcraftApp>, at: Pos2, dy: f32) {
+    h.event(Event::PointerMoved(at));
+    h.event(Event::ModifiersChanged(Modifiers::SHIFT));
+    h.event(Event::MouseWheel { unit: MouseWheelUnit::Point, delta: vec2(0.0, dy), modifiers: Modifiers::SHIFT, phase: egui::TouchPhase::Move });
+    h.run_steps(10);
+    h.event(Event::ModifiersChanged(Modifiers::NONE));
+    h.step();
+}
+
+/// Zoomed in, the time graph has a scroll bar under it, as the layers have beside them: its
+/// thumb drags the graph sideways at the same zoom, as far as the comp's end and no further, and
+/// Shift+wheel stops there too. The zoom slider beside it still zooms, and showing the whole comp
+/// hides it.
+#[test]
+fn the_time_graph_scrolls_sideways_with_its_scroll_bar() {
+    let (mut h, layer) = harness();
+    // (Opening the comp showed all of it.)
+    h.state_mut().ui.timeline.pps = Some(200.0);
+    h.run_steps(2);
+    let bar = rect(&h, "timeline.timeScroll");
+    let ruler = rect(&h, "timeline.ruler");
+    assert!(bar.min.x >= ruler.min.x && bar.max.x < ruler.max.x && bar.min.y > over_bar(&h, layer).y, "under the time graph: {bar:?}");
+    // The thumb dragged 100 px to the right: later in the comp, and nothing else moves.
+    let thumb = pos2(bar.min.x + 8.0, bar.center().y);
+    drag(&mut h, thumb, thumb + vec2(100.0, 0.0));
+    let (a, _) = visible(&h);
+    assert!(a > 10.0, "starts at {a}");
+    assert_eq!(h.state().ui.timeline.pps, Some(200.0), "the zoom stays");
+    assert_eq!(h.state().session.active_comp().unwrap().layers[0].in_point.seconds(), 0.0, "the layer stays");
+    assert_eq!(h.state().session.time().seconds(), 0.0, "the current time stays");
+    // Past the track's end: the comp's end at the graph's right edge.
+    let thumb = thumb + vec2(100.0, 0.0);
+    drag(&mut h, thumb, pos2(bar.max.x + 200.0, thumb.y));
+    let (_, b) = visible(&h);
+    assert!((b - 600.0).abs() < 0.1, "ends at {b}");
+    // Shift+wheel later stays there; earlier scrolls back.
+    let graph = pos2(ruler.center().x, over_bar(&h, layer).y);
+    shift_wheel(&mut h, graph, -240.0);
+    let (a, b2) = visible(&h);
+    assert!((b2 - 600.0).abs() < 0.1, "ends at {b2}");
+    shift_wheel(&mut h, graph, 240.0);
+    assert!(visible(&h).0 < a - 0.5, "{} from {a}", visible(&h).0);
+    // The zoom slider, just below the bar, still zooms.
+    let zs = rect(&h, "timeline.zoomSlider");
+    let at = |f: f32| pos2(zs.min.x + zs.width() * f, zs.center().y);
+    drag(&mut h, at(0.8), at(0.9));
+    assert!(h.state().ui.timeline.pps.is_some_and(|p| p > 300.0), "zoomed in: {:?}", h.state().ui.timeline.pps);
+    // The whole comp: no scroll bar.
+    let ctx = h.ctx.clone();
+    effectcraft_ui_egui::menus::invoke(h.state_mut(), &ctx, "timeline.zoomFrameToggle", json!({})).unwrap();
+    h.run_steps(2);
+    assert_eq!(h.state().ui.timeline.pps, None);
+    assert!(h.state().auto.find("timeline.timeScroll").is_none());
+}
+
 /// #290: right-clicking the work area bar offers its commands; Trim Comp to Work Area trims.
 #[test]
 fn work_area_context_menu_trims_the_comp() {
