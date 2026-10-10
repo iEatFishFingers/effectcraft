@@ -10,9 +10,9 @@ does, which functions it touches and which tests cover it.
 
 | Page | Branch | Type | Status |
 |---|---|---|---|
-| [[layer-double-click-opens-layer]] | `fix/layer-double-click-opens-layer` | fix | ready |
-| [[expression-camera-light-attributes]] | `fix/expression-camera-light-attributes` | fix | ready |
-| [[aep-to-ecproj-import]] | `feat/aep-to-ecproj-import` | feature | ready for review |
+| [[layer-double-click-opens-layer]] | `fix/layer-double-click-opens-layer` | fix | CI pending |
+| [[expression-camera-light-attributes]] | `fix/expression-camera-light-attributes` | fix | CI pending |
+| [[aep-to-ecproj-import]] | `feat/aep-to-ecproj-import` | feature | CI pending |
 
 How the branches are managed: [[branching]].
 
