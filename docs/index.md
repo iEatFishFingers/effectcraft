@@ -12,6 +12,7 @@ does, which functions it touches and which tests cover it.
 |---|---|---|---|
 | [[layer-double-click-opens-layer]] | `fix/layer-double-click-opens-layer` | fix | CI pending |
 | [[expression-camera-light-attributes]] | `fix/expression-camera-light-attributes` | fix | CI pending |
+| [[slow-edits-with-image-sequences]] | `fix/slow-edits-with-image-sequences` | fix | CI pending |
 | [[aep-to-ecproj-import]] | `feat/aep-to-ecproj-import` | feature | CI pending |
 
 How the branches are managed: [[branching]].

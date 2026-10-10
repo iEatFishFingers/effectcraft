@@ -22,4 +22,5 @@ part of [[index]]
 
 ## Current branches
 
-[[layer-double-click-opens-layer]], [[expression-camera-light-attributes]], [[aep-to-ecproj-import]].
+[[layer-double-click-opens-layer]], [[expression-camera-light-attributes]], [[slow-edits-with-image-sequences]],
+[[aep-to-ecproj-import]].
