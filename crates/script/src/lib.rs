@@ -92,3 +92,5 @@ mod tests_panels;
 mod tests_ui;
 #[cfg(test)]
 mod tests_ui_more;
+#[cfg(test)]
+mod tests_update;

@@ -290,7 +290,7 @@ pub struct EffectcraftApp {
 impl EffectcraftApp {
     pub fn new(mut session: Session) -> Self {
         // Scripts' File.openDialog and the others wait for this app to show the system dialog.
-        session.script_ui.file_dialogs = true;
+        session.script_ui.frontend = true;
         EffectcraftApp {
             session,
             ui: UiState::default(),
