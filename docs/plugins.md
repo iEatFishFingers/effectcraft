@@ -20,6 +20,7 @@ Guide):
 | Keyboard shortcuts for scripts (the Keyboard Shortcuts editor lists the scripts of the Scripts folder) | Shortcuts bind to commands and menu entries; the File ▸ Scripts and Window menu entries of scripts aren't offered | Gap |
 | Running a script from the command line (`afterfx -r script.jsx`) | `effectcraft-cli script`, the control channel's and MCP's `script.run` | Same purpose, other entry points |
 | `app.settings` (kept in the preferences between sessions) | Kept in `script_settings.json` in the settings folder (`script.settings.get` / `script.settings.save`) | Same |
+| `File.openDialog`, `File.saveDialog`, `Folder.selectDialog` (and `openDlg` / `saveDlg` / `selectDlg`): the system's file dialogs | The desktop app shows the system's dialogs; what the user picks may be read (written, from a save dialog) without Allow Scripts to Write Files. Without a window (`effectcraft-cli`, MCP) and on the web they return `null`, as when cancelled | Same in the desktop app |
 | Allow Scripts to Write Files and Access Network | Settings ▸ Scripting & Expressions | Same |
 
 The settings folder is `~/Library/Application Support/EffectCraft` on macOS, `%APPDATA%\EffectCraft`
@@ -40,6 +41,13 @@ journaled and the same as the UI's action. The `effectcraft-script` crate's docs
   folder). It is listed in File ▸ Scripts at once (After Effects asks for a restart).
 * `file.scripts.list` lists installed and bundled scripts and panels; `file.runScript {name}` runs
   one; `file.uninstallScript {name}` removes an installed one.
+* File dialogs: `File.openDialog(prompt, "JSON:*.json", multiSelect)`, `File.saveDialog(prompt,
+  filter)` and `Folder.selectDialog(prompt)` wait while the desktop app shows the system's dialog
+  (a dialog's buttons can open them too), and return a `File` (an array with `multiSelect`), a
+  `Folder` or `null`. The script may read what was picked, and write a file picked in a save
+  dialog, without Allow Scripts to Write Files. For agents, the reply that left the script waiting
+  has `"fileDialog": {kind: open|save|folder, prompt, extensions, multi, name}`, and
+  `scriptui.fileDialog {paths: [path] | null}` answers it.
 
 ## ScriptUI panels
 
@@ -122,6 +130,17 @@ It uses only After Effects' documented scripting API (`comp.selectedProperties`,
 `Property.selectedKeys`, `keyInTemporalEase` / `keyOutTemporalEase`, `setTemporalEaseAtKey` with
 `KeyframeEase`, `setInterpolationTypeAtKey`, `app.settings`, ScriptUI), so it is also a worked
 example of a keyframe tool.
+
+## Importing After Effects projects (ae2ec)
+
+ae2ec, a separate tool, moves After Effects projects into EffectCraft with scripts on both sides:
+its After Effects script exports a project as an `.ae2ec.json`, and its EffectCraft script
+rebuilds it. Its `tools\install.ps1` installs the EffectCraft side as `Import from After
+Effects.jsx` in the Scripts folder. File ▸ Import ▸ After Effects Project (.ae2ec.json)…
+(`file.importAfterEffects`) runs that script, which asks for the export, shows its options, imports
+it and reports what didn't come across. The importer and its format live in the ae2ec repository,
+so they change without EffectCraft changing; without them installed, the menu item says how to
+install them.
 
 ## Effect plug-ins
 

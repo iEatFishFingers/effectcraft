@@ -29,6 +29,8 @@ pub struct Outcome {
     /// The script is waiting in a modal ScriptUI dialog's `show()` (it goes on when the dialog
     /// closes; see [`crate::dispatch_ui`]).
     pub waiting: bool,
+    /// What it waits for when that is a file dialog (`scriptui.fileDialog` answers).
+    pub file_dialog: Option<effectcraft_engine::scriptui::FileDialogRequest>,
 }
 
 /// An uncaught script error.
@@ -54,6 +56,9 @@ impl Outcome {
         if self.waiting {
             j["waiting"] = json!(true);
         }
+        if let Some(d) = &self.file_dialog {
+            j["fileDialog"] = json!(d);
+        }
         j
     }
 }
@@ -72,11 +77,13 @@ pub(crate) struct Active {
     /// Running on a script-host thread: modal dialogs hand the session back to the caller
     /// through this link while they wait.
     pub(crate) link: Option<crate::ui::Link>,
+    /// That thread's host id (what events for it are routed by).
+    pub(crate) host: u32,
 }
 
 impl Active {
     pub(crate) fn new(session: Session, name: &str) -> Active {
-        Active { session, output: vec![], groups: vec![], tasks: vec![], next_task: 0, name: name.to_string(), link: None }
+        Active { session, output: vec![], groups: vec![], tasks: vec![], next_task: 0, name: name.to_string(), link: None, host: 0 }
     }
 }
 
@@ -326,6 +333,15 @@ fn check_access(s: &Session, path: &str, write: bool) -> Result<std::path::PathB
     if s.prefs.scripting.allow_scripts_write_files {
         return Ok(p);
     }
+    // What the user picked in a file dialog: that file (or what's in that folder), and writing a
+    // file picked in a save dialog.
+    let picked = |k: &effectcraft_engine::scriptui::Picked| {
+        let d = normalize(&k.path);
+        if write { k.write && p == d } else { p.starts_with(&d) }
+    };
+    if s.script_ui.picked.iter().any(picked) {
+        return Ok(p);
+    }
     if write {
         return Err(format!("Unable to write {path}: scripts can't write files unless {GATE} is on"));
     }
@@ -410,7 +426,7 @@ pub(crate) fn new_context() -> Result<Context, String> {
     let limits = ctx.runtime_limits_mut();
     limits.set_loop_iteration_limit(200_000_000);
     limits.set_recursion_limit(2000);
-    let natives: [(JsString, usize, fn(&JsValue, &[JsValue], &mut Context) -> JsResult<JsValue>); 10] = [
+    let natives: [(JsString, usize, fn(&JsValue, &[JsValue], &mut Context) -> JsResult<JsValue>); 11] = [
         (js_string!("__exec"), 2, native_exec),
         (js_string!("__query"), 2, native_query),
         (js_string!("__print"), 1, native_print),
@@ -421,6 +437,7 @@ pub(crate) fn new_context() -> Result<Context, String> {
         (js_string!("__uiNewId"), 0, crate::ui::native_new_id),
         (js_string!("__uiModal"), 1, crate::ui::native_modal),
         (js_string!("__uiLayoutNative"), 1, crate::ui::native_layout),
+        (js_string!("__fileDialog"), 5, crate::ui::native_file_dialog),
     ];
     for (name, len, f) in natives {
         ctx.register_global_callable(name, len, NativeFunction::from_fn_ptr(f)).map_err(|e| e.to_string())?;

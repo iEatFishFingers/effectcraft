@@ -85,6 +85,8 @@ mod tests;
 #[cfg(test)]
 mod tests_ease_presets;
 #[cfg(test)]
+mod tests_file_dialogs;
+#[cfg(test)]
 mod tests_panels;
 #[cfg(test)]
 mod tests_ui;

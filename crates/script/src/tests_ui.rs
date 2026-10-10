@@ -297,3 +297,22 @@ fn sample_scripts_and_installing() {
     let _ = std::fs::remove_dir_all(&dir);
     let _: Value = json!(null);
 }
+
+#[test]
+fn file_import_after_effects_runs_the_installed_ae2ec_importer() {
+    let mut s = session();
+    // Not installed: say how to install it.
+    let e = s.execute("file.importAfterEffects", json!({})).unwrap_err().to_string();
+    assert!(e.contains("install.ps1") && e.contains("Import from After Effects.jsx"), "{e}");
+    // Installed (in File ▸ Scripts): File ▸ Import runs it.
+    let dir = std::env::temp_dir().join(format!("ec-ae2ec-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let file = dir.join("Import from After Effects.jsx");
+    std::fs::write(&file, r#"app.project.items.addComp("From AE", 64, 64, 1, 1, 24); "imported""#).unwrap();
+    s.execute("file.installScript", json!({"path": file.to_string_lossy()})).unwrap();
+    let r = s.execute("file.importAfterEffects", json!({})).unwrap();
+    assert_eq!(r["result"], "imported", "{r}");
+    assert!(comp_names(&s).contains(&"From AE".to_string()));
+    let spec = effectcraft_engine::find_command("file.importAfterEffects").unwrap();
+    assert_eq!(spec.menu, ["File", "Import"]);
+}

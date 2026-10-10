@@ -157,13 +157,13 @@ fn draw_widget(app: &mut EffectcraftApp, ui: &mut egui::Ui, origin: egui::Pos2, 
         }
         WidgetKind::Checkbox => {
             let mut v = w.checked;
-            let r = ui.add_enabled_ui(w.enabled, |ui| ui.put(snug(rect, &w.text), egui::Checkbox::new(&mut v, &w.text))).inner;
+            let r = put_left(ui, rect, w.enabled, egui::Checkbox::new(&mut v, &w.text));
             if tip(r).clicked() {
                 acts.push(Act::Click(win, w.id));
             }
         }
         WidgetKind::RadioButton => {
-            let r = ui.add_enabled_ui(w.enabled, |ui| ui.put(snug(rect, &w.text), egui::RadioButton::new(w.checked, &w.text))).inner;
+            let r = put_left(ui, rect, w.enabled, egui::RadioButton::new(w.checked, &w.text));
             if tip(r).clicked() && !w.checked {
                 acts.push(Act::Click(win, w.id));
             }
@@ -335,10 +335,10 @@ fn paint_image(ui: &egui::Ui, r: Rect, img: &ImageRef, services: &dyn Services) 
     true
 }
 
-/// Checkboxes and radio buttons sit at the left of their (possibly filled) bounds.
-fn snug(r: Rect, text: &str) -> Rect {
-    let w = (text.chars().count() as f32 * 7.0 + 26.0).min(r.width());
-    Rect::from_min_size(r.min, vec2(w, r.height()))
+/// Checkboxes and radio buttons sit at the left of their (possibly filled) bounds, however wide
+/// their label draws (`ui.put` would centre them there).
+fn put_left(ui: &mut egui::Ui, r: Rect, enabled: bool, widget: impl egui::Widget) -> egui::Response {
+    ui.scope_builder(UiBuilder::new().max_rect(r).layout(egui::Layout::left_to_right(egui::Align::Center)), |ui| ui.add_enabled(enabled, widget)).inner
 }
 
 fn perform(app: &mut EffectcraftApp, ctx: &egui::Context, acts: Vec<Act>) {
@@ -349,22 +349,51 @@ fn perform(app: &mut EffectcraftApp, ctx: &egui::Context, acts: Vec<Act>) {
             Act::Changing(w, id, v) => ("scriptui.set", json!({"window": w, "widget": id, "value": v, "changing": true})),
             Act::Close(w) => ("scriptui.close", json!({"window": w})),
         };
-        match crate::menus::invoke(app, ctx, cmd, p) {
-            Ok(r) => {
-                if let Some(e) = r.get("error").filter(|e| !e.is_null()) {
-                    let msg = e["message"].as_str().unwrap_or("script error").to_string();
-                    app.toast = Some((msg, ctx.input(|i| i.time)));
-                } else if let Some(o) = r["output"].as_str().filter(|o| !o.is_empty()) {
-                    app.ui.status = o.lines().last().unwrap_or_default().to_string();
-                }
-            }
-            Err(e) => app.ui.status = e,
-        }
+        run(app, ctx, cmd, p);
     }
+}
+
+/// Run a `scriptui.*` command: a script error becomes a toast, the last line it printed the
+/// status.
+fn run(app: &mut EffectcraftApp, ctx: &egui::Context, cmd: &str, p: Value) {
+    match crate::menus::invoke(app, ctx, cmd, p) {
+        Ok(r) => {
+            if let Some(e) = r.get("error").filter(|e| !e.is_null()) {
+                let msg = e["message"].as_str().unwrap_or("script error").to_string();
+                app.toast = Some((msg, ctx.input(|i| i.time)));
+            } else if let Some(o) = r["output"].as_str().filter(|o| !o.is_empty()) {
+                app.ui.status = o.lines().last().unwrap_or_default().to_string();
+            }
+        }
+        Err(e) => app.ui.status = e,
+    }
+}
+
+/// A script waiting in `File.openDialog`, `File.saveDialog` or `Folder.selectDialog`: show the
+/// system dialog and hand the script what was picked (nothing when cancelled, or when this host
+/// has no dialog).
+fn answer_file_dialog(app: &mut EffectcraftApp, ctx: &egui::Context) {
+    let Some(req) = app.session.script_ui.file_dialog.clone() else { return };
+    let exts: Vec<&str> = req.extensions.iter().map(String::as_str).collect();
+    let paths: Vec<String> = match req.kind.as_str() {
+        "folder" => app.hooks.pick_folder.as_ref().and_then(|f| f()).into_iter().collect(),
+        "save" => {
+            let name = match (req.name.is_empty(), exts.first()) {
+                (false, _) => req.name.clone(),
+                (true, Some(e)) => format!("Untitled.{e}"),
+                (true, None) => "Untitled".into(),
+            };
+            app.hooks.save_dialog(&name).flatten().into_iter().collect()
+        }
+        _ => app.hooks.pick_files.as_ref().map(|f| f(&exts)).unwrap_or_default(),
+    };
+    let paths = if paths.is_empty() { Value::Null } else { json!(paths) };
+    run(app, ctx, "scriptui.fileDialog", json!({"paths": paths}));
 }
 
 /// The floating script windows (dialogs, palettes, windows), drawn over the app.
 pub fn show_windows(app: &mut EffectcraftApp, ctx: &egui::Context) {
+    answer_file_dialog(app, ctx);
     let windows: Vec<ScriptWindow> = app.session.script_ui.windows.iter().filter(|w| w.kind != WindowKind::Panel).cloned().collect();
     if windows.is_empty() {
         return;
