@@ -92,7 +92,11 @@ Supported controls: `panel`, `group`, `button`, `iconbutton`, `statictext`, `edi
 `tabbedpanel` / `tab` and `image`, with ScriptUI's automatic layout (`orientation`,
 `alignChildren`, `alignment`, `margins`, `spacing`, `preferredSize`), resource strings, event
 handlers (`onClick`, `onChange`, `onChanging`, `onClose`, `addEventListener`) and `onDraw` with
-ScriptUIGraphics. Mouse events (`mousedown`, `mousemove`…) aren't sent to scripts yet. Agents use
+ScriptUIGraphics. A script doing long work calls `Window.update()` to show its progress (a
+palette's progress bar and text), as in After Effects: the desktop app redraws then, at most every
+50 ms, so it stays responsive instead of "Not responding", and the script's buttons work meanwhile
+(a Cancel button); without a window it does nothing. Mouse events (`mousedown`, `mousemove`…)
+aren't sent to scripts yet. Agents use
 a panel like a user: `scriptui.list`, `scriptui.get` (its controls), `scriptui.click`,
 `scriptui.set` and `scriptui.close`; every control has the automation id
 `scriptui.<window>.<control id or name>`. The bundled sample `Layer Tools.jsx`

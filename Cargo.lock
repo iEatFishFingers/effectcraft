@@ -1546,6 +1546,7 @@ dependencies = [
  "effectcraft-render",
  "effectcraft-time",
  "serde_json",
+ "web-time",
 ]
 
 [[package]]
