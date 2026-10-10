@@ -183,6 +183,10 @@ The most important missing piece: it turns every other estimate here into a meas
   `shape_tool_options_paint_new_shapes`, `masks_of_every_shape_tool_kind`,
   `tool_creates_mask_draws_a_mask_on_the_selected_shape_layer` and
   `fill_options_paint_the_next_shape` (Tool Creates Shape / Mask, Fill and Stroke Options).
+- Regression evidence for [#637](https://github.com/storytold/effectcraft/issues/637), checked
+  headlessly on Windows: `ui_layer_double_click` (`double_clicking_a_precomp_bar_or_name_opens_it`,
+  `double_clicking_cameras_lights_and_text_in_the_timeline`, and
+  `double_clicking_layers_in_the_composition_panel`, which puts a precomp in front of a title).
 - Done when: no open bug blocks a basic workflow (import, arrange, animate, preview, render) on
   any of the three desktop platforms, and every bug users report gets triaged within a day.
 

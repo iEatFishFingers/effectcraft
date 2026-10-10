@@ -105,9 +105,11 @@ or into the Timeline, between layers and at the time you point to.
 - **Expressions:** JavaScript with the After Effects object model (`wiggle`, `loopOut`,
   `thisComp.layer("…")`, vector maths on arrays), an inline editor and the pick-whip.
 - **Timeline like you know it:** twirl layers open to Transform, masks, effects and the rest; drag
-  rows to reorder layers; rename with Enter or a double-click; the property shortcuts (A, P, S,
-  R, T, M, F, E, L, U and their double presses AA, PP, SS, RR, TT, MM, FF, EE, LL, UU), Shift to
-  add properties, Alt+Shift+A/P/S/R/T to key the current time, Ctrl+` to twirl selected layers.
+  rows to reorder layers; double-click a layer to open it (a precomp opens its composition,
+  footage and solids the Layer panel, cameras and lights their settings, text to edit) and rename
+  with Enter; the property shortcuts (A, P, S, R, T, M, F, E, L, U and their double presses AA,
+  PP, SS, RR, TT, MM, FF, EE, LL, UU), Shift to add properties, Alt+Shift+A/P/S/R/T to key the
+  current time, Ctrl+` to twirl selected layers.
 - **Puppet tools:** Position, Advanced, Bend, Starch and Overlap pins on a mesh built from the
   layer, real-time pin recording, rotate/scale handles, pins driven by (or carrying) nulls for
   rigging, and follow-through for hair and cloth.

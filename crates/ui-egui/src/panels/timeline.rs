@@ -580,6 +580,21 @@ fn rename_focus_id() -> egui::Id {
     egui::Id::new("tl-rename-focus")
 }
 
+/// What double-clicking a layer's name or bar does, as in After Effects: a precomp opens its
+/// composition (Alt: the Layer panel), footage and solids open in the Layer panel (paint happens
+/// there), a camera or light opens its settings, and a text layer is edited with all its text
+/// selected. `None`: the name is renamed instead.
+fn open_on_double_click(layer: &Layer, alt: bool) -> Option<(String, serde_json::Value)> {
+    let id = layer.id.0;
+    Some(match &layer.source {
+        LayerSource::Comp { item } if !alt => ("comp.open".into(), json!({"comp": item.0})),
+        LayerSource::Comp { .. } | LayerSource::Footage { .. } | LayerSource::Solid { .. } => ("layer.openLayer".into(), json!({"layer": id})),
+        LayerSource::Camera | LayerSource::Light { .. } => ("layer.settings".into(), json!({"layer": id})),
+        LayerSource::Text => ("text.edit".into(), json!({"layer": id})),
+        _ => return None,
+    })
+}
+
 fn group_visible(g: &PropGroup, layer: &Layer) -> bool {
     match g.match_id.as_str() {
         "masks" | "effects" => !g.children.is_empty(),
@@ -1775,7 +1790,7 @@ pub fn show(app: &mut EffectcraftApp, ui: &mut egui::Ui, rect: Rect) {
                     lp.text(pos2(cw.num + 13.0, cy), Align2::CENTER_CENTER, format!("{}", idx_of(layer.id)), Tokens::ui(11.5), t.text_dim);
                 }
                 layer_cells(app, ui, &lp, &cw, &comp, layer, r, cy, &mut actions);
-                // Row click → select; double-click → rename; drag → reorder. Registered before the
+                // Row click → select; double-click → open (or rename); drag → reorder. Registered before the
                 // twirl and the name field so those sit on top and get their clicks.
                 let row_x0 = if vis.num { cw.num } else { cw.name + 16.0 };
                 let row_resp = ui.interact(
@@ -1847,13 +1862,9 @@ pub fn show(app: &mut EffectcraftApp, ui: &mut egui::Ui, rect: Rect) {
                     }
                 }
                 if row_resp.double_clicked() {
-                    match &layer.source {
-                        LayerSource::Comp { item } => actions.push(("comp.open".into(), json!({"comp": item.0}))),
-                        // Footage and solids open in the Layer panel (paint happens there).
-                        LayerSource::Footage { .. } | LayerSource::Solid { .. } => {
-                            actions.push(("layer.openLayer".into(), json!({"layer": layer.id.0})));
-                        }
-                        _ => start_rename(&ctx, layer.id.0, &layer.name),
+                    match open_on_double_click(layer, ui.input(|i| i.modifiers.alt)) {
+                        Some(a) => actions.push(a),
+                        None => start_rename(&ctx, layer.id.0, &layer.name),
                     }
                 }
                 layer_context_menu(&row_resp, layer, &mut actions);
@@ -2073,6 +2084,12 @@ pub fn show(app: &mut EffectcraftApp, ui: &mut egui::Ui, rect: Rect) {
                         if (body.clicked() || body.drag_started()) && !shift {
                             set_anchor(&ctx, cid, layer.id);
                         }
+                    }
+                    // Double-clicking the bar opens the layer as double-clicking its name does.
+                    if body.double_clicked()
+                        && let Some(a) = open_on_double_click(layer, ui.input(|i| i.modifiers.alt))
+                    {
+                        actions.push(a);
                     }
                     layer_context_menu(&body, layer, &mut actions);
                     let drag_key = format!("bar-{}", layer.id.0);

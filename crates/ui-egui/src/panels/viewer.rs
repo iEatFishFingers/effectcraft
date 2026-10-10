@@ -1671,11 +1671,20 @@ pub fn show(app: &mut EffectcraftApp, ui: &mut egui::Ui, rect: Rect) {
         && !app.ui.tool.is_pen()
         && let Some(pos) = resp.interact_pointer_pos()
     {
+        // A precomp opens its composition; footage, solids and (with Alt) a precomp open in the
+        // Layer panel, as in After Effects.
+        use effectcraft_engine::project::LayerSource;
         let cpt = map.to_comp(pos);
-        if let Some(l) = pick(app, &ectx, cpt, false).and_then(|l| comp.layer(l))
-            && let effectcraft_engine::project::LayerSource::Comp { item } = &l.source
-        {
-            app.session.open_comp(*item);
+        if let Some(l) = pick(app, &ectx, cpt, false).and_then(|l| comp.layer(l)) {
+            match &l.source {
+                LayerSource::Comp { item } if !mods.alt => app.session.open_comp(*item),
+                LayerSource::Comp { .. } | LayerSource::Footage { .. } | LayerSource::Solid { .. } => {
+                    if let Err(e) = crate::menus::invoke(app, &ctx, "layer.openLayer", json!({"layer": l.id.0})) {
+                        app.ui.status = e;
+                    }
+                }
+                _ => {}
+            }
         }
     }
     // 3D Camera Tracker points, targets and their menu (on top of the viewer's gestures while
@@ -1884,7 +1893,12 @@ pub(crate) fn selectable_layers(comp: &Comp, time: Tick) -> impl Iterator<Item =
 
 /// Selectable layers under a comp point, front to back.
 fn layers_at<'a, 'b>(ectx: &'b EvalCtx<'a>, cpt: [f64; 2]) -> impl Iterator<Item = &'a Layer> + 'b {
-    selectable_layers(ectx.comp, ectx.time).filter(move |l| layer_quad(ectx, l).is_some_and(|(_, q, _)| point_in_quad(cpt, &q)))
+    selectable_layers(ectx.comp, ectx.time).filter(move |l| covers(ectx, l, cpt))
+}
+
+/// Whether a layer's content box covers a comp point (what a click there hits).
+pub(crate) fn covers(ectx: &EvalCtx, l: &Layer, cpt: [f64; 2]) -> bool {
+    layer_quad(ectx, l).is_some_and(|(_, q, _)| point_in_quad(cpt, &q))
 }
 
 /// Topmost selectable layer under a comp point.
