@@ -517,7 +517,12 @@ Scripts that build ScriptUI windows publish them to the session; agents drive th
 
 A dialog's `show()` waits for the user: the `script.run` / `file.runScript` reply carries
 `"waiting": true`, and the script continues (its final output arrives in the reply of the click
-that closes the dialog). File ▸ Scripts: `file.scripts.list`, `file.runScript {"name": …}`,
+that closes the dialog). `File.openDialog`, `File.saveDialog` and `Folder.selectDialog` wait the
+same way in the desktop app, where the reply also has `"fileDialog": {kind: open|save|folder,
+prompt, extensions, multi, name}`; answer with `scriptui.fileDialog {"paths": ["/path/x.json"]}`
+(`null` cancels; only the app or an agent answers, a script can't). The script may read what was
+picked without Allow Scripts to Write Files; writing, a file picked in a save dialog too, still
+needs it. Headless (`effectcraft-cli`, MCP) they return `null` at once. File ▸ Scripts: `file.scripts.list`, `file.runScript {"name": …}`,
 `file.installScript` / `file.installScriptUIPanel {"path": …}`, `window.scriptPanel {"name": …}`,
 `window.restoreScriptPanels` (the panels open when the app last quit). Scripts' `app.settings`:
 `script.settings.get {"section": …, "key": …}` and `script.settings.save {…, "value": …}`.

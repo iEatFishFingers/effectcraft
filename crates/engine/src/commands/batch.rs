@@ -9,8 +9,9 @@ use serde_json::{Value, json};
 use super::{CommandSpec, always, bad, str_p};
 use crate::{EngineError, Result, Session};
 
-/// Commands that can't run inside a batch (they replace the project or nest batches).
-const NOT_IN_BATCH: &[&str] = &["engine.batch", "file.runScript", "script.run"];
+/// Commands that can't run inside a batch (they replace the project or nest batches, or answer a
+/// script's file dialog, which only the app or an agent does, never a script running a batch).
+const NOT_IN_BATCH: &[&str] = &["engine.batch", "file.runScript", "script.run", "scriptui.fileDialog"];
 
 /// Resolve a `$N` / `$N.key.0.key` reference against the results so far.
 fn reference(s: &str, results: &[Value]) -> Option<Result<Value>> {
