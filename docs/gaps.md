@@ -154,6 +154,10 @@ The most important missing piece: it turns every other estimate here into a meas
   `apps/effectcraft-web/tests/page.mjs` (#226, #225); the #225, #226 and #231 reproductions also
   pass in the dev web build in headless Chrome 154 (device pixel ratio 2, a rejected file read,
   `GPUDevice.destroy()`).
+- Regression evidence for an expression check of 10 October (camera, light and Time Remap
+  attributes read off a layer, such as `thisComp.activeCamera.zoom`, and the comp's
+  `shutterAngle` / `shutterPhase` were `undefined`): `camera_light_time_remap_and_shutter_attributes`
+  (expr).
 - Regression evidence for the Turbulent Displace, Wave Warp and Bulge pinning of #227:
   `edge_pinning_displaces_all_of_a_centred_shape_layer` (render) and
   `edge_pinning_on_a_shape_layer` (GPU against CPU).
