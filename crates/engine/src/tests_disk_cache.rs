@@ -136,3 +136,72 @@ fn footage_changes_change_the_salt() {
     assert_ne!(k3, k2);
     assert_ne!(set_proxy(&mut s, false), k3);
 }
+
+#[test]
+fn edits_reuse_the_footage_salt_until_footage_changes_or_a_second_passes() {
+    let dir = folder("salt");
+    let mut s = session(&dir);
+    project(&mut s);
+    s.execute("file.importPlaceholder", json!({"name": "Shot"})).unwrap();
+    let (_, at, salt) = s.footage_salt.clone().unwrap();
+    // Edits that leave footage alone don't read the footage files again (with long image
+    // sequences that took tens of milliseconds per edit).
+    for v in [1, 2, 3] {
+        s.execute("prop.set", json!({"layer": "#1", "path": "effects/#1/blurriness", "value": v})).unwrap();
+    }
+    let (_, at2, salt2) = s.footage_salt.clone().unwrap();
+    assert_eq!((at2, salt2), (at, salt));
+    // A footage change reads them at once.
+    s.execute("file.importPlaceholder", json!({"name": "Shot 2"})).unwrap();
+    let (_, at3, salt3) = s.footage_salt.clone().unwrap();
+    assert!(at3 > at && salt3 != salt);
+    // So does any edit a second later (footage changed outside EffectCraft).
+    std::thread::sleep(std::time::Duration::from_millis(1100));
+    s.execute("prop.set", json!({"layer": "#1", "path": "effects/#1/blurriness", "value": 4})).unwrap();
+    assert!(s.footage_salt.as_ref().unwrap().1 > at3);
+}
+
+/// Probes every file as a 64×32 still, so a file rewritten in place reloads to the same item.
+struct Stills;
+impl crate::Importer for Stills {
+    fn probe(&self, path: &str) -> Result<effectcraft_project::Footage, String> {
+        if !std::path::Path::new(path).is_file() {
+            return Err(format!("{path}: no such file"));
+        }
+        Ok(effectcraft_project::Footage {
+            path: path.into(),
+            kind: effectcraft_project::FootageKind::Still,
+            width: 64,
+            height: 32,
+            has_video: true,
+            codec: "PNG".into(),
+            ..Default::default()
+        })
+    }
+}
+
+/// File ▸ Reload Footage reads the footage salt again at once, even within the second in which
+/// edits reuse it: a file rewritten in place (same kind and size to the importer) leaves its item
+/// as it was, so only the salt tells the disk cache that its old pixels are stale (#578).
+#[test]
+fn reload_footage_reads_the_footage_salt_again() {
+    let dir = folder("reload");
+    let mut s = session(&dir);
+    s.importer = Some(std::sync::Arc::new(Stills));
+    let shots = std::env::temp_dir().join(format!("effectcraft-reload-salt-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&shots);
+    std::fs::create_dir_all(&shots).unwrap();
+    let plate = shots.join("plate.png");
+    std::fs::write(&plate, b"one").unwrap();
+    let r = s.execute("file.import", json!({"paths": [plate.to_string_lossy()], "sequence": false})).unwrap();
+    let item = r["items"][0].as_u64().unwrap();
+    let before = s.footage_salt.as_ref().unwrap().2;
+    // Another app rewrites the file; to the importer it is the same 64×32 still.
+    std::thread::sleep(std::time::Duration::from_millis(30));
+    std::fs::write(&plate, b"two, longer").unwrap();
+    s.state.project_selection = vec![effectcraft_project::ItemId(item)];
+    s.execute("file.reloadFootage", json!({"items": [item]})).unwrap();
+    let after = s.footage_salt.as_ref().unwrap().2;
+    assert_ne!(after, before, "the reload read the footage files again");
+    assert_eq!(after, effectcraft_render::disk_cache::footage_salt(&s.project));
+}

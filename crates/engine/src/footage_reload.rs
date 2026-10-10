@@ -177,12 +177,20 @@ fn reload(s: &mut Session, ids: &[ItemId], undoable: bool) -> crate::Result<(usi
     Ok((n, failed))
 }
 
-/// Make the media layer and the layer cache let go of `paths`, so renders read them again.
+/// Make the media layer and the layer cache let go of `paths`, so renders read them again. The
+/// disk cache's footage salt is read again too: a file rewritten in place can leave its item as
+/// it was, and edits reuse the salt for a second ([`Session::bump`]), so without this the disk
+/// cache would hand back the file's old pixels.
 fn forget(s: &mut Session, paths: &BTreeSet<String>) {
     for p in paths {
         s.footage.forget(p);
     }
     s.layer_cache.clear();
+    if s.disk_cache.is_some() {
+        s.footage_salt = None;
+        let salt = s.disk_salt();
+        s.layer_cache.set_disk_salt(salt);
+    }
     s.events.push(crate::Event::PurgeCaches);
 }
 
