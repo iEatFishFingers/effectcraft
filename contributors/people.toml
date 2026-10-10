@@ -49,3 +49,8 @@ sync_github_name = false
 real_name = "Julen Llop"
 display_name = "Julen Llop"
 sync_github_name = false
+
+[people.iEatFishFingers]
+real_name = "Yoanne Youmbi"
+display_name = "Yoanne Youmbi"
+sync_github_name = false
