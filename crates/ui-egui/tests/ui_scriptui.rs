@@ -224,3 +224,47 @@ fn on_draw_concave_fills_and_images_render() {
     h.state_mut().session.execute("scriptui.close", json!({})).unwrap();
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// Checkboxes and radio buttons in a column line up at the left edge of their bounds, however
+/// long their labels: each label is drawn the same distance from that edge, just past its box.
+/// They were centred in a box sized from an estimated label width, so each one drifted right by
+/// half that estimate's error, the longer the label the further.
+#[test]
+fn checkboxes_and_radio_buttons_in_a_column_line_up_at_the_left() {
+    /// Where the text `label` is drawn this frame.
+    fn text_x(s: &egui::Shape, label: &str) -> Option<f32> {
+        match s {
+            egui::Shape::Text(t) if t.galley.text() == label => Some(t.pos.x),
+            egui::Shape::Vec(v) => v.iter().find_map(|s| text_x(s, label)),
+            _ => None,
+        }
+    }
+    let mut h = harness();
+    let labels = ["Aq", "Keep every footage item's interpretation settings", "Zx", "Rebuild each composition with all of its layers and keyframes"];
+    let code = format!(
+        r#"var w = new Window("palette", "Import Options");
+        w.alignChildren = "fill";
+        w.add("checkbox", undefined, "{}");
+        w.add("checkbox", undefined, "{}");
+        w.add("radiobutton", undefined, "{}");
+        w.add("radiobutton", undefined, "{}");
+        w.show();"#,
+        labels[0], labels[1], labels[2], labels[3]
+    );
+    let r = h.state_mut().session.execute("script.run", json!({"code": code, "name": "options.jsx"})).unwrap();
+    assert_eq!(r["ok"], true, "{r}");
+    h.run_steps(3);
+    let win = h.state().session.script_ui.windows[0].id;
+    let into: Vec<f32> = labels
+        .iter()
+        .enumerate()
+        .map(|(i, label)| {
+            let bounds = rect(&h, &format!("scriptui.{win}.{}", i + 1));
+            let x = h.output().shapes.iter().find_map(|c| text_x(&c.shape, label)).unwrap_or_else(|| panic!("{label} isn't drawn"));
+            x - bounds.min.x
+        })
+        .collect();
+    for (label, d) in labels.iter().zip(&into) {
+        assert!((d - into[0]).abs() < 1.0 && *d < 30.0, "{label} is drawn {d} px into its bounds: {into:?}");
+    }
+}
