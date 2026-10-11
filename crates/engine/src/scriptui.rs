@@ -749,9 +749,16 @@ pub(crate) fn file_dialog(s: &mut Session, p: &Value) -> Result<Value> {
     if !req.multi {
         paths.truncate(1);
     }
+    // The script reads what was picked as it carries on, so it is granted first; an answer that
+    // doesn't reach the script grants nothing.
+    let granted = s.script_ui.picked.len();
     s.script_ui.picked.extend(paths.iter().map(|path| Picked { path: path.clone() }));
     let value = if paths.is_empty() { Value::Null } else { json!(paths) };
-    dispatch(s, ScriptUiEvent { window: 0, widget: 0, kind: FILE_DIALOG_EVENT.into(), value })
+    let r = dispatch(s, ScriptUiEvent { window: 0, widget: 0, kind: FILE_DIALOG_EVENT.into(), value });
+    if r.is_err() {
+        s.script_ui.picked.truncate(granted);
+    }
+    r
 }
 
 #[cfg(test)]
@@ -895,5 +902,15 @@ mod tests {
         assert!((a - 8.0 - std::f64::consts::PI * 100.0).abs() < 1.0, "{a}");
         let open = vec![PathSeg::M { x: 0.0, y: 0.0 }, PathSeg::L { x: 4.0, y: 0.0 }, PathSeg::L { x: 0.0, y: 4.0 }];
         assert!((area(&PathSeg::fill_triangles(&open, 48, false)) - 8.0).abs() < 1e-9);
+    }
+
+    /// An answer to a file dialog that doesn't reach the script (here: no scripting engine to hand
+    /// it to) grants nothing, so later scripts can't read what it named.
+    #[test]
+    fn a_file_dialog_answer_that_fails_grants_nothing() {
+        let mut s = Session::default();
+        s.script_ui.file_dialog = Some(FileDialogRequest { kind: "open".into(), ..Default::default() });
+        assert!(s.execute("scriptui.fileDialog", json!({"paths": ["/somewhere/secret.json"]})).is_err());
+        assert!(s.script_ui.picked.is_empty());
     }
 }
