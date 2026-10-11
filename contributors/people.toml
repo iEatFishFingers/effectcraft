@@ -54,3 +54,8 @@ sync_github_name = false
 real_name = "Vikram Bhaskaran"
 display_name = "Vikram Bhaskaran"
 sync_github_name = false
+
+[people.iEatFishFingers]
+real_name = "Yoanne Youmbi"
+display_name = "Yoanne Youmbi"
+sync_github_name = false
