@@ -58,11 +58,6 @@ fn classic_geometry_row(comp: &Comp, l: &Layer) -> bool {
     comp.renderer == effectcraft_engine::project::Renderer::Classic3D && l.is_3d() && matches!(l.source, LayerSource::Text | LayerSource::Shape)
 }
 
-/// Time navigator's visible-span bar and the work area bar.
-const NAV_BAR: Color32 = Color32::from_rgb(0x55, 0x55, 0x55);
-const WORK_AREA_BAR: Color32 = Color32::from_rgb(0x5c, 0x5c, 0x5c);
-/// Fill of the timeline's switch / A/V boxes (dark wells, as in After Effects).
-const SWITCH_BOX: Color32 = Color32::from_rgb(0x19, 0x19, 0x19);
 /// Background of the selected layer's name cell.
 const SELECTED_NAME_BG: Color32 = Color32::from_rgb(0xa6, 0xa6, 0xa6);
 
@@ -1212,6 +1207,34 @@ pub fn show(app: &mut EffectcraftApp, ui: &mut egui::Ui, rect: Rect) {
     let ctx = ui.ctx().clone();
     let Some(cid) = app.session.active_comp_id() else {
         ui.painter().text(rect.center(), Align2::CENTER_CENTER, "(no composition)", Tokens::ui(12.0), t.text_faint);
+        // Dropping footage into an empty Timeline should create its first composition,
+        // just like dropping onto the Project panel's New Composition button (#649).
+        if let Some(crate::panels::DragPayload::Item(dragged)) = egui::DragAndDrop::payload::<crate::panels::DragPayload>(&ctx).as_deref()
+            && ui.rect_contains_pointer(rect)
+        {
+            let items: Vec<ItemId> = crate::panels::project_drop_items(app, *dragged)
+                .into_iter()
+                .map(ItemId)
+                .filter(|id| {
+                    app.session.project.item(*id).is_some_and(|item| match &item.kind {
+                        effectcraft_engine::project::ItemKind::Footage(footage) => footage.kind != effectcraft_engine::project::FootageKind::Data,
+                        effectcraft_engine::project::ItemKind::Solid(_) | effectcraft_engine::project::ItemKind::Comp(_) => true,
+                        _ => false,
+                    })
+                })
+                .collect();
+            if !items.is_empty() {
+                ui.painter().rect_stroke(rect.shrink(2.0), 0.0, Stroke::new(2.0, t.accent), StrokeKind::Inside);
+                app.auto.add("timeline.newCompDrop", rect, "Drop footage to create a composition");
+                if ctx.input(|i| i.pointer.any_released()) {
+                    app.session.state.project_selection = items;
+                    if let Err(e) = crate::menus::invoke(app, &ctx, "file.newCompFromSelection", json!({})) {
+                        app.ui.status = e;
+                    }
+                    egui::DragAndDrop::clear_payload(&ctx);
+                }
+            }
+        }
         return;
     };
     let Some(comp) = app.session.project.comp_arc(cid) else { return };
@@ -1337,7 +1360,7 @@ pub fn show(app: &mut EffectcraftApp, ui: &mut egui::Ui, rect: Rect) {
     let vis1 = (tm.t(graph_x1) / comp.duration.seconds()) as f32;
     let nav_vis =
         Rect::from_min_max(pos2(nav.min.x + nav.width() * vis0.clamp(0.0, 1.0), nav.min.y), pos2(nav.min.x + nav.width() * vis1.clamp(0.0, 1.0), nav.max.y));
-    p.rect_filled(nav_vis, 0.0, NAV_BAR);
+    p.rect_filled(nav_vis, 0.0, t.tl_nav_bar);
     for x in [nav_vis.min.x, nav_vis.max.x] {
         p.rect_filled(Rect::from_min_max(pos2(x - 3.0, nav.min.y - 1.0), pos2(x + 3.0, nav.max.y + 1.0)), 3.0, t.accent);
     }
@@ -1377,7 +1400,7 @@ pub fn show(app: &mut EffectcraftApp, ui: &mut egui::Ui, rect: Rect) {
     let wa_row = Rect::from_min_max(pos2(graph_x0, top + header_h), pos2(rect.max.x, top + header_h + colhdr_h));
     let (wa0, wa1) = (comp.work_area.0.seconds(), comp.work_area.1.seconds());
     let wa = Rect::from_min_max(pos2(tm.x(wa0), wa_row.min.y + 3.0), pos2(tm.x(wa1), wa_row.max.y - 6.0));
-    p.with_clip_rect(wa_row).rect_filled(wa, 0.0, WORK_AREA_BAR);
+    p.with_clip_rect(wa_row).rect_filled(wa, 0.0, t.tl_work_area_bar);
     let shift = ui.input(|i| i.modifiers.shift);
     let bar = wa.intersect(wa_row);
     let bresp = ui.interact(bar, egui::Id::new("wa-bar"), Sense::click_and_drag());
@@ -1740,7 +1763,7 @@ pub fn show(app: &mut EffectcraftApp, ui: &mut egui::Ui, rect: Rect) {
                 // (outline and time graph alike), not as alternating stripes.
                 let _ = ri;
                 lp.rect_filled(left, 0.0, if is_sel { t.row_selected } else { t.row_alt });
-                gp.rect_filled(Rect::from_min_max(pos2(graph_x0, r.min.y), r.max), 0.0, if is_sel { Color32::from_rgb(0x2a, 0x2a, 0x2a) } else { t.tl_bg });
+                gp.rect_filled(Rect::from_min_max(pos2(graph_x0, r.min.y), r.max), 0.0, if is_sel { t.tl_graph_selected } else { t.tl_bg });
                 lp.line_segment([pos2(rect.min.x, r.max.y - 0.5), pos2(graph_x0, r.max.y - 0.5)], Stroke::new(1.0, t.app_bg));
                 gp.line_segment([pos2(graph_x0, r.max.y - 0.5), pos2(r.max.x, r.max.y - 0.5)], Stroke::new(1.0, t.app_bg));
                 // A/V features.
@@ -1756,7 +1779,7 @@ pub fn show(app: &mut EffectcraftApp, ui: &mut egui::Ui, rect: Rect) {
                     if !applicable || !vis.av {
                         continue;
                     }
-                    lp.rect_filled(br.shrink(0.5), 1.0, SWITCH_BOX);
+                    lp.rect_filled(br.shrink(0.5), 1.0, t.switch_well);
                     layer_switch(ui, &t, r, br, icon, on, egui::Id::new(("av", layer.id.0, i)), layer.id.0, name, &mut actions);
                     app.auto.add(&format!("timeline.layer.{}.{name}", layer.id.0), br, name);
                 }
@@ -1882,7 +1905,7 @@ pub fn show(app: &mut EffectcraftApp, ui: &mut egui::Ui, rect: Rect) {
                         continue;
                     }
                     let br = Rect::from_center_size(pos2(cw.switches + SW * i as f32 + SW / 2.0, cy), vec2(16.0, 16.0));
-                    lp.rect_filled(br.shrink(1.0), 1.0, SWITCH_BOX);
+                    lp.rect_filled(br.shrink(1.0), 1.0, t.switch_well);
                     layer_switch(ui, &t, r, br, icon, on, egui::Id::new(("sw", layer.id.0, i)), layer.id.0, name, &mut actions);
                     app.auto.add(&format!("timeline.layer.{}.switch.{name}", layer.id.0), br, name);
                 }
@@ -2237,7 +2260,7 @@ pub fn show(app: &mut EffectcraftApp, ui: &mut egui::Ui, rect: Rect) {
                 let en_r = Rect::from_center_size(pos2(cw.switches + 10.0, cy), vec2(16.0, 16.0));
                 let en = ui.interact(en_r, egui::Id::new(("expr-en", uid)), Sense::click()).on_hover_text(crate::i18n::tr("Enable Expression"));
                 lp.rect_stroke(en_r.shrink(1.0), 2.0, Stroke::new(1.0, t.separator), StrokeKind::Inside);
-                let expr_col = Color32::from_rgb(0xe8, 0x7c, 0x5c);
+                let expr_col = t.expr_text;
                 lp.text(
                     en_r.center(),
                     Align2::CENTER_CENTER,
@@ -2322,7 +2345,7 @@ pub fn show(app: &mut EffectcraftApp, ui: &mut egui::Ui, rect: Rect) {
                 }
                 // The editor in the time-graph area.
                 ui.set_clip_rect(right_clip);
-                gp.rect_filled(Rect::from_min_max(pos2(graph_x0, r.min.y), r.max), 0.0, Color32::from_rgb(0x1a, 0x1a, 0x1a));
+                gp.rect_filled(Rect::from_min_max(pos2(graph_x0, r.min.y), r.max), 0.0, t.expr_bg);
                 let er = Rect::from_min_max(pos2(graph_x0 + 8.0, r.min.y + 3.0), pos2(rect.max.x - 14.0, r.max.y - 3.0));
                 let mut buf: String = ctx.data(|d| d.get_temp(buf_id)).unwrap_or_else(|| ex.text.clone());
                 if let Some(after) = ctx.data_mut(|d| d.remove_temp::<usize>(expr_refocus_id(*uid))) {
@@ -2441,13 +2464,7 @@ pub fn show(app: &mut EffectcraftApp, ui: &mut egui::Ui, rect: Rect) {
                 let is_tr_rot = layer.transform().and_then(|t| t.get("rotation")).is_some_and(|r| r.uid == prop.uid);
                 let base = if is_tr_rot && prop.name == "Rotation" && layer.is_3d() { "Z Rotation".to_string() } else { prop.name.clone() };
                 let pname = if prop.has_expression() { format!("{base}  =") } else { base };
-                lp.text(
-                    pos2(name_x, cy),
-                    Align2::LEFT_CENTER,
-                    &pname,
-                    Tokens::ui(12.0),
-                    if prop.has_expression() { Color32::from_rgb(0xe8, 0x7c, 0x5c) } else { t.text },
-                );
+                lp.text(pos2(name_x, cy), Align2::LEFT_CENTER, &pname, Tokens::ui(12.0), if prop.has_expression() { t.expr_text } else { t.text });
                 let name_rect = Rect::from_min_max(pos2(name_x, r.min.y), pos2(cw.switches - 2.0, r.max.y));
                 let name_resp = ui.interact(name_rect, egui::Id::new(("pname", uid)), Sense::click_and_drag());
                 app.auto.add(&format!("timeline.prop.{uid}.name"), name_rect, &prop.name);
@@ -2492,7 +2509,7 @@ pub fn show(app: &mut EffectcraftApp, ui: &mut egui::Ui, rect: Rect) {
                         Align2::LEFT_CENTER,
                         format!("= {}", e.text.lines().next().unwrap_or("")),
                         Tokens::mono(11.0),
-                        Color32::from_rgb(0xe8, 0x7c, 0x5c),
+                        t.expr_text,
                     );
                 }
                 // Keyframes.
@@ -3523,8 +3540,11 @@ fn value_editor(
     let uid = prop.uid;
     let mut dims = vec![];
     let merge = format!("scrub-{uid}");
+    // With several layers selected the edit applies to all of them (#491): a scrub by the same
+    // change, a typed value as it is.
+    let scrub = ui.ctx().dragged_id().is_some() && ui.input(|i| i.pointer.is_decidedly_dragging());
     let set = |actions: &mut Vec<(String, serde_json::Value)>, v: serde_json::Value| {
-        actions.push(("prop.set".into(), json!({"layer": layer.id.0, "prop": uid, "value": v, "merge": merge})))
+        actions.push(("prop.set".into(), json!({"layer": layer.id.0, "prop": uid, "value": v, "merge": merge, "selected": true, "offset": scrub})))
     };
     let is_3d = layer.is_3d();
     let mut x = at.x;
@@ -3604,6 +3624,17 @@ fn value_editor(
             if resp.clicked() {
                 widgets::open_popup(ui, pop);
             }
+            // The eyedropper after the swatch samples the Composition panel (shape Fill and
+            // Stroke colours, text and effect colours), as in After Effects' Timeline (#633).
+            let er = Rect::from_center_size(pos2(r.max.x + 12.0, at.y), vec2(16.0, 16.0));
+            let active = app.ui.fx_pick.as_ref().is_some_and(|k| k.prop == uid && k.kind == "color");
+            if super::fx_widgets::eyedropper_button(ui, er, active, egui::Id::new(("tl-eye", uid)), &t)
+                .on_hover_text(crate::i18n::tr("Eyedropper: click, then click in the Composition panel"))
+                .clicked()
+            {
+                super::effect_controls::toggle_pick(app, "color", layer, prop);
+            }
+            app.auto.add(&format!("timeline.prop.{uid}.eyedropper"), er, &prop.name);
             let mut rgb = [c[0] as f32, c[1] as f32, c[2] as f32];
             if crate::widgets::color_popup(ui, pop, r.left_bottom(), &mut rgb) {
                 set(actions, json!([rgb[0], rgb[1], rgb[2], 1.0]));
