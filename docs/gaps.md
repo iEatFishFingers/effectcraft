@@ -215,6 +215,11 @@ Issues #41–#47 (all from the Linux AppImage 0.1.1, 5 October): panning the vie
   `.ecproj`, the way ffmpeg is used only from outside), or its format knowledge could be ported.
   The second means reading another implementation of the format, which AGENTS.md rules out
   unless the clean-room scope allows it.
+- A route that needs no knowledge of the format, for anyone who still has After Effects:
+  [ae2ec](https://github.com/iEatFishFingers/Aep-2-Ecproj) exports the open project through After
+  Effects' own scripting API, and its script here rebuilds it (File ▸ Import ▸ After Effects
+  Project (.ae2ec.json)…; [plugins.md](plugins.md#importing-after-effects-projects-ae2ec)).
+  Nothing reads `.aep` files, so it doesn't settle the decision above.
 - Also in this area: relative footage paths and relinking when a project moves (gap 18).
 - Done when: the decision is recorded and, if approved, a corpus of real-world-shaped projects
   opens with its comps, layers, keyframes, effects and expressions intact.

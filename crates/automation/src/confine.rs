@@ -32,6 +32,7 @@ pub struct Confinement {
 const REFUSED: &[&str] = &[
     "script.run",
     "file.runScript",
+    "file.importAfterEffects",
     "file.installScript",
     "file.installScriptUIPanel",
     "file.uninstallScript",

@@ -136,6 +136,44 @@ It uses only After Effects' documented scripting API (`comp.selectedProperties`,
 `KeyframeEase`, `setInterpolationTypeAtKey`, `app.settings`, ScriptUI), so it is also a worked
 example of a keyframe tool.
 
+## Importing After Effects projects (ae2ec)
+
+EffectCraft can't open `.aep` files. [ae2ec](https://github.com/iEatFishFingers/Aep-2-Ecproj), a
+separate, public tool, moves After Effects projects across with a script on each side:
+
+1. **In After Effects**, `ae/AE2EC_Export.jsx` (File ▸ Scripts ▸ Run Script File…; it needs After
+   Effects' Allow Scripts to Write Files and Access Network) walks the open project through After
+   Effects' documented scripting API and saves it as `<project>.ae2ec.json`.
+2. **Here**, ae2ec's `tools\install.ps1` installs its import dialog (the importer, Relink and
+   Verify in one script) as `Import from After Effects.jsx` in the Scripts folder. Run it again
+   after updating ae2ec; EffectCraft doesn't need restarting.
+3. **File ▸ Import ▸ After Effects Project (.ae2ec.json)…** (`file.importAfterEffects`; also File
+   ▸ Scripts ▸ Import from After Effects) runs that script. It asks for the export with a file
+   dialog, shows its options, and rebuilds the project in the open one, inside a folder named after
+   it, as one undo step. A progress window (`Window.update()`) shows each layer and can cancel.
+   The report lists what didn't come across, with Relink Footage…, Verify (compares what was built
+   with the export, property by property) and Save Report… (saving needs Allow Scripts to Write
+   Files, like any script's writes). Without the script installed, the command says where to get
+   it.
+
+**What transfers:** folders, footage (image sequences and interpretation included), solids, comps
+and their settings, every layer type, switches, blending modes, parenting, track mattes, time
+remapping, and each layer's property tree: values, keyframes (eases, spatial tangents, hold,
+roving), expressions, built-in effects (found by match name), masks, shape contents, text and
+text animators, markers and most layer styles. **Known gaps:** third-party plug-ins (listed as
+missing), effect data scripts can't read (Curves, Levels' histogram, some keyers: added with
+defaults), per-character text styling, the Render Queue, proxies and Essential Graphics; puppet
+pins, paint and Roto Brush strokes are attempted only. ae2ec's
+[coverage list](https://github.com/iEatFishFingers/Aep-2-Ecproj/blob/main/docs/coverage.md) has
+the details. It has been run on a round-trip fixture with no differences and on real After
+Effects 2020 projects of up to 34 comps and 355 layers.
+
+**Clean room.** Nothing here reads `.aep` bytes or knows the format. After Effects describes its
+own project through its public scripting API, and the importer rebuilds it with EffectCraft's
+public scripting API (`app.run` for engine commands such as Interpret Footage). The importer and
+its format live in the ae2ec repository, so they change without EffectCraft changing. The route
+needs a copy of After Effects to export from.
+
 ## Effect plug-ins
 
 EffectCraft loads third-party effects through a small, versioned plug-in API (**API version 1**).

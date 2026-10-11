@@ -1248,6 +1248,8 @@ fn automation_roots_confine_file_access() {
     // Scripts can read and write anything: refused.
     denied(&mut s, "run_script", json!({"code": "1 + 1"}));
     denied(&mut s, "execute_command", json!({"command": "file.runScript", "params": {"path": p(&read, "x.jsx")}}));
+    // File ▸ Import ▸ After Effects Project runs the installed ae2ec importer script.
+    denied(&mut s, "execute_command", json!({"command": "file.importAfterEffects"}));
     // Writes to the files the agent named: none outside.
     assert_eq!(std::fs::read_dir(&outside).unwrap().count(), 1, "only the unconfined save");
     let _ = std::fs::remove_dir_all(&base);

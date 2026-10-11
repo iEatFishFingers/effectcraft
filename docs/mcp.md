@@ -12,9 +12,10 @@ written only under a write root; with no write root nothing is written. Every en
 parameters must be absolute paths inside the roots (symbolic links resolved, no `..`), and so must
 any other absolute path in its parameters. Save, Increment and Save and rendering the Render
 Queue are checked against the files they write (the open project's, the queued outputs). Scripts
-(`run_script`, `file.runScript`…), Execute File, Reveal in Finder, `$N` references to file paths
-in a batch, and the bridge's UI-driving tools (`ui_click`, `ui_key`, `ui_type`, `ui_drag`,
-`ui_set`, `script_ui`, `control`) are refused while confined. Without the flags nothing changes.
+(`run_script`, `file.runScript`, `file.importAfterEffects`…), Execute File, Reveal in Finder, `$N`
+references to file paths in a batch, and the bridge's UI-driving tools (`ui_click`, `ui_key`,
+`ui_type`, `ui_drag`, `ui_set`, `script_ui`, `control`) are refused while confined. Without the
+flags nothing changes.
 
 The server provides the same core conventions as FilmCraft #28:
 
