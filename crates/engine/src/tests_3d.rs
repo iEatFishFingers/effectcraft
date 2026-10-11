@@ -243,3 +243,68 @@ fn demo_has_3d_showcase() {
     let lit = img.data.iter().filter(|p| p[3] > 0.99 && p[0] + p[1] + p[2] > 0.3).count();
     assert!(lit > 2_000, "{lit}");
 }
+
+/// Distance between two points.
+fn gap(a: [f64; 3], b: [f64; 3]) -> f64 {
+    ((a[0] - b[0]).powi(2) + (a[1] - b[1]).powi(2) + (a[2] - b[2]).powi(2)).sqrt()
+}
+
+/// The eye of camera `cam` in comp space at 0 s: where the renderer looks from.
+fn eye(s: &Session, cam: u64) -> [f64; 3] {
+    let cid = s.active_comp_id().unwrap();
+    let c = s.project.comp(cid).unwrap();
+    let ctx = effectcraft_render::EvalCtx::new(&s.project, cid, c, effectcraft_time::Tick::ZERO);
+    let e = effectcraft_render::three_d::camera::layer_frame(&ctx, c.layer(effectcraft_project::LayerId(cam)).unwrap()).0;
+    [e.x, e.y, e.z]
+}
+
+/// A camera at [0, 0, -500] under two nulls, the outer one at the comp centre and the inner
+/// one at [0, 0] in its parent: an After Effects rig, with Positions in parent space (parented
+/// without compensation, as an import sets them). Returns (nulls, camera).
+fn camera_under_nulls(s: &mut Session) -> ([u64; 2], u64) {
+    let outer = s.execute("layer.newNull", json!({"name": "Outer"})).unwrap()["layer"].as_u64().unwrap();
+    let inner = s.execute("layer.newNull", json!({"name": "Inner"})).unwrap()["layer"].as_u64().unwrap();
+    let cam = s.execute("layer.newCamera", json!({"type": "oneNode"})).unwrap()["layer"].as_u64().unwrap();
+    s.execute("layer.setParent", json!({"layers": [inner], "parent": outer, "compensate": false})).unwrap();
+    s.execute("layer.setParent", json!({"layers": [cam], "parent": inner, "compensate": false})).unwrap();
+    s.execute("prop.set", json!({"layer": inner, "path": "transform/position", "value": [0.0, 0.0, 0.0]})).unwrap();
+    s.execute("prop.set", json!({"layer": cam, "path": "transform/position", "value": [0.0, 0.0, -500.0]})).unwrap();
+    ([outer, inner], cam)
+}
+
+#[test]
+fn new_nulls_anchor_at_their_top_left_so_children_sit_where_after_effects_puts_them() {
+    let mut s = session();
+    let (nulls, cam) = camera_under_nulls(&mut s);
+    for n in nulls {
+        assert_eq!(prop(&s, n, "transform/anchor").as_vec3(), [0.0, 0.0, 0.0]);
+    }
+    // At the comp centre, not 50 px up and left for each null (EffectCraft 0.7's centred
+    // anchor put this camera at [220, 80]).
+    let e = eye(&s, cam);
+    assert!(gap(e, [320.0, 180.0, -500.0]) < 1e-9, "{e:?}");
+}
+
+#[test]
+fn nulls_saved_with_the_old_centred_anchor_open_unchanged() {
+    // EffectCraft 0.7 and older gave new nulls a centred anchor and saved it with the project;
+    // project files store every value, so opening such a project keeps the rig where it was.
+    let mut s = session();
+    let (nulls, cam) = camera_under_nulls(&mut s);
+    for n in nulls {
+        s.execute("prop.set", json!({"layer": n, "path": "transform/anchor", "value": [50.0, 50.0, 0.0]})).unwrap();
+    }
+    let before = eye(&s, cam);
+    assert!(gap(before, [220.0, 80.0, -500.0]) < 1e-9, "{before:?}");
+    let dir = std::env::temp_dir().join(format!("ec-null-anchor-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("centred nulls.ecproj").to_string_lossy().to_string();
+    s.execute("file.saveAs", json!({"path": path})).unwrap();
+    let mut opened = Session::default();
+    opened.execute("file.open", json!({"path": path})).unwrap();
+    let _ = std::fs::remove_dir_all(dir);
+    for n in nulls {
+        assert_eq!(prop(&opened, n, "transform/anchor").as_vec3(), [50.0, 50.0, 0.0]);
+    }
+    assert!(gap(eye(&opened, cam), before) < 1e-9);
+}

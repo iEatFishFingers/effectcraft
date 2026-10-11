@@ -86,6 +86,18 @@ fn camera_and_light_layers_build() {
 }
 
 #[test]
+fn new_nulls_anchor_at_their_top_left_corner_as_in_after_effects() {
+    let (mut p, cid) = project_with_layer();
+    let comp = p.comp(cid).unwrap().clone();
+    let null = build::layer(&mut p, &comp, "Null 1", LayerSource::Null, (100, 100), None);
+    assert_eq!(null.props.prop("transform/anchor").unwrap().value, Value::Vec3([0.0, 0.0, 0.0]));
+    assert_eq!(null.props.prop("transform/position").unwrap().value, Value::Vec3([960.0, 540.0, 0.0]));
+    // Layers with a source rectangle keep their anchor at its centre.
+    let solid = &p.comp(cid).unwrap().layers[0];
+    assert_eq!(solid.props.prop("transform/anchor").unwrap().value, Value::Vec3([960.0, 540.0, 0.0]));
+}
+
+#[test]
 fn same_content_sees_allocated_ids_and_comp_edits() {
     let (p, cid) = project_with_layer();
     let mut q = p.clone();

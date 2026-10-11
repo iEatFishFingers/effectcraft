@@ -734,6 +734,9 @@ pub fn default_label(src: &LayerSource, project: &Project) -> Label {
 }
 
 /// A new layer spanning the whole comp, anchored at its source centre and centred in the comp.
+/// Nulls, like text and shape layers, are anchored at their top-left corner (layer-space
+/// origin), as in After Effects: a child parented to an untouched null sits at the null's
+/// Position plus its own.
 pub fn layer(project: &mut Project, comp: &Comp, name: &str, source: LayerSource, size: (u32, u32), duration: Option<Tick>) -> Layer {
     let label = default_label(&source, project);
     let id = LayerId(project.alloc());
@@ -743,11 +746,11 @@ pub fn layer(project: &mut Project, comp: &Comp, name: &str, source: LayerSource
     let anchor = match source {
         LayerSource::Text
         | LayerSource::Shape
+        | LayerSource::Null
         | LayerSource::Camera
         | LayerSource::Light { .. }
         | LayerSource::Model { .. }
         | LayerSource::Primitive { .. } => [0.0, 0.0],
-        LayerSource::Null => [50.0, 50.0],
         _ => [w / 2.0, h / 2.0],
     };
     let mut root = ids.group("layer", name);
